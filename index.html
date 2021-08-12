@@ -1,0 +1,145 @@
+<html>
+<head>
+    <title>Polaris Barcode Test</title>
+    <style>
+      #form {
+        display: flex;
+        flex-direction:column;
+        max-width: 400px;
+        padding: 1em;
+      }
+      label span {
+        display: inline-block;
+        margin-right: 1em;
+      }
+      input {
+        padding: 1em;
+      }
+      #scan_status {
+        padding: 1em;
+        border: 1px solid;
+        border-color: #222;
+        color: #666;
+        text-align: center;
+      }
+      .readed {
+        color: #080;
+        border-color: #080;
+        font-weight:bold;
+        background: #cfc;
+      }
+    </style>
+</head>
+<body>
+  <div id="form">
+  <label><span>Prefix</span><input id='prefix' type='text' size='3' maxlength='1' value='|'></label><br>
+  <label><span>Suffix</span><input id='suffix' type='text' size='3' maxlength='1' value='_'></label><br>
+  <input type='button' value='Update prefix and suffix' id="button"><br>
+  <div id="scan_status" class="">Status: (no read)</div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-2.2.4.min.js"
+     crossorigin="anonymous"></script>
+
+  <script language='javascript'>
+
+    $(document).ready(function () {
+      init_prefix_sufix();
+      $('#button').on('click', function () { init_prefix_sufix(); });
+      capture_codebar();
+    });
+
+    function init_prefix_sufix() {
+      globals_barcode_code_prefix = $('#prefix').val();
+      globals_barcode_code_suffix = $('#suffix').val();
+    }
+
+    function capture_codebar_callback(event, barcode) {
+      console.log(barcode);
+      $('#scan_status').html('Status: ' + barcode).addClass('readed');
+      setTimeout(function(){
+        $('#scan_status').html('Status: (no read)').removeClass('readed');
+      }, 1500);
+    }
+
+  function capture_codebar() {
+    var pressed = false;
+    var chars = [];
+    var prefix_started = globals_barcode_code_prefix=='';
+
+    $(window).keypress(function(e) {
+      var regex = new RegExp('^[a-zA-Z0-9\.]+$');
+      var str = String.fromCharCode(!e.charCode ? e.which : e.charCode);
+      //console.log(str, regex.test(str),chars);
+      if (
+          str == globals_barcode_code_prefix ||
+          str == globals_barcode_code_suffix ||
+          (regex.test(str) && (prefix_started) )
+      ) {
+
+        if (str == globals_barcode_code_prefix) {
+          prefix_started = true;
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        if ($(e.target).data('codebar_scanned') === 0 || typeof $(e.target).data('before_scan') == 'undefined')
+          $(e.target).data('before_scan',$(e.target).val());
+
+        if (
+          (str != globals_barcode_code_prefix && globals_barcode_code_prefix != '') ||
+          globals_barcode_code_prefix == ''
+        ) {
+          if (globals_barcode_code_suffix != str) {
+            chars.push(str);
+          }
+          else  {
+            /** Ejecuto la llamada de capture **/
+            var barcode = chars.join('');
+            // assign value to some input (or do whatever you want)
+            if (typeof capture_codebar_callback === 'function') {
+              capture_codebar_callback(e,barcode);
+            }
+            $(e.target).data('codebar_scanned',0);
+            chars = [];
+            pressed = false;
+            prefix_started = false;
+
+          }
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        $(e.target).data('codebar_scanned',1);
+      }
+
+      if (
+        pressed == false &&
+        (
+          globals_barcode_code_prefix == '' ||
+          globals_barcode_code_suffix == ''
+        )
+      ) {
+        /** Esto es para que el sistema ejecute por tiempo **/
+        if (globals_barcode_code_suffix == '') {
+          setTimeout(function(){
+              if (chars.length >= 7) { // Danger!!
+                  var barcode = chars.join('');
+                  // assign value to some input (or do whatever you want)
+                  if (typeof capture_codebar_callback === 'function') {
+                    capture_codebar_callback(e,barcode);
+                  }
+              }
+              $(e.target).data('codebar_scanned',0);
+              chars = [];
+              pressed = false;
+          }, globals_barcode_code_timer);
+        }
+        pressed = true;
+      }
+
+    });
+  }
+  </script>
+
+</body>
+</html>
